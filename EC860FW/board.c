@@ -31,11 +31,34 @@ typedef struct switch_state
 	unsigned char s6 : 1; // Switch 6 state
 } switch_state;
 
+typedef struct ntc_mapping
+{
+	unsigned int adc_value; // ADC reading from NTC
+	unsigned char temp_c;	// Corresponding temperature in Celsius
+} ntc_mapping;
+
 volatile psm_state pump_psm = {0, 0x7F, 0, 0}; // Pump PSM (0-127)
 // psm_state coffee_boiler_psm = {0, 0x7F, 0, 0}; // Coffee boiler PSM (0-127)
 
 switch_state switches = {0, 0, 0, 0, 0, 0}; // Switch states
 led_state leds = {0, 0, 0, 0, 0, 0};		// LED states
+
+const ntc_mapping temp_mapping[] = {
+	{90U, 25U},
+	{110U, 30U},
+	{160U, 40U},
+	{230U, 50U},
+	{300U, 60U},
+	{390U, 70U},
+	{470U, 80U},
+	{560U, 90U},
+	{640U, 100U},
+	{710U, 110U},
+	{790U, 120U},
+	{870U, 130U},
+	{950U, 140U},
+	{1030U, 150U},
+	{1110U, 160U}};
 
 volatile unsigned long system_time_ms = 0;
 volatile unsigned char zero_crossed = 0;
@@ -49,32 +72,37 @@ volatile unsigned char pressure_duty_cycle = 0;
 
 void check_zc(void);
 void set_leds_switches(unsigned long);
+unsigned int temp_interpolation(unsigned int);
 void adc_poll(void);
 char calculateSkip(psm_state *);
 
-unsigned int uart_counter = 0;
+unsigned long uart_counter = 0;
 
 void test_stuff(unsigned long currentMillis)
 {
 	char msg_buffer[32];
 
-	if (uart_counter++ >= 500)
+	if (uart_counter <= currentMillis)
 	{
 		leds.led5 = !leds.led5; // Toggle LED5 every 500ms
 
-		uart_counter = 0;
+		while (uart_counter <= currentMillis)
+		{
+			uart_counter += 500;
+		}
 
 		// if (leds.led5)
 		// 	sprintf(msg_buffer, "S: %u\n", ntc_s_adc_value);
 		// else
 		// 	sprintf(msg_buffer, "C: %u\n", ntc_c_adc_value);
 
-		printf("[%i]\n", (int)pressure);
+		// sprintf(msg_buffer, "[%i]\n", (int)pressure);
+		sprintf(msg_buffer, "%u;%u\n", ntc_c_adc_value, temp_interpolation(ntc_c_adc_value));
 
-		//text_write(msg_buffer);
-
-		// adc_poll();
+		text_write(msg_buffer);
 	}
+
+	adc_poll();
 
 	if (switches.s5 == 1)
 	{
@@ -91,7 +119,7 @@ void test_stuff(unsigned long currentMillis)
 
 	leds.led6 = switches.s1;
 	leds.led4 = switches.s2;
-	leds.led5 = switches.s3;
+	// leds.led5 = switches.s3;
 
 	leds.led1 = switches.s4;
 	leds.led2 = switches.s5;
@@ -144,6 +172,38 @@ void set_leds_switches(unsigned long currentMillis)
 unsigned long millis()
 {
 	return system_time_ms;
+}
+
+unsigned int temp_interpolation(unsigned int adc_value) // 10 * centigrade
+{
+	unsigned char i = sizeof(temp_mapping) / sizeof(ntc_mapping) - 1;
+	ntc_mapping previous = temp_mapping[i];
+
+	if (adc_value >= previous.adc_value)
+	{
+		return previous.temp_c * 10;
+	}
+
+	i--;
+
+	for (; i > 0; i--)
+	{
+		ntc_mapping current = temp_mapping[i];
+
+		if (adc_value >= current.adc_value)
+		{
+			// Linear interpolation
+			unsigned int temp_c = current.temp_c * 10 +
+								  ((adc_value - current.adc_value) * (previous.temp_c - current.temp_c) * 10) /
+									  (previous.adc_value - current.adc_value);
+
+			return temp_c;
+		}
+
+		previous = current;
+	}
+
+	return 0; // Out of range
 }
 
 void adc_poll()
