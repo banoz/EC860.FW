@@ -46,8 +46,9 @@ typedef struct ntc_mapping
 	unsigned char temp_c;	// Corresponding temperature in Celsius
 } ntc_mapping;
 
-volatile psm_state pump_psm = {0, 0x7F, 0, 0}; // Pump PSM (0-127)
-// psm_state coffee_boiler_psm = {0, 0x7F, 0, 0}; // Coffee boiler PSM (0-127)
+volatile psm_state pump_psm = {0, 0x7F, 0, 0};			// Pump PSM (0-127)
+volatile psm_state coffee_boiler_psm = {0, 0x7F, 0, 0}; // Coffee boiler PSM (0-127)
+volatile psm_state steam_boiler_psm = {0, 0x7F, 0, 0};	// Steam boiler PSM (0-127)
 
 union valve_state
 {
@@ -103,54 +104,6 @@ unsigned int temp_interpolation(unsigned int);
 void adc_poll(void);
 char calculateSkip(psm_state *);
 
-unsigned long uart_counter = 0;
-
-void test_stuff(unsigned long currentMillis, system_state * current_state)
-{
-	char msg_buffer[32];
-
-	if (uart_counter <= currentMillis)
-	{
-		leds.flags.led5 = !leds.flags.led5; // Toggle LED5 every 500ms
-
-		while (uart_counter <= currentMillis)
-		{
-			uart_counter += 500;
-		}
-
-		// if (leds.led5)
-		// 	sprintf(msg_buffer, "S: %u\n", ntc_s_adc_value);
-		// else
-		// 	sprintf(msg_buffer, "C: %u\n", ntc_c_adc_value);
-
-		// sprintf(msg_buffer, "[%i]\n", (int)pressure);
-		// sprintf(msg_buffer, "%u;%u\n", ntc_c_adc_value, temp_interpolation(ntc_c_adc_value));
-
-		// text_write(msg_buffer);
-	}
-
-	adc_poll();
-
-	if (switches.flags.s5 == 1)
-	{
-		current_state->pump = 10;
-	}
-	else if (switches.flags.s4 == 1)
-	{
-		current_state->pump = 50;
-	}
-	else
-	{
-		current_state->pump = 0;
-	}
-
-	PIN_EV1 = switches.flags.s1 == 1 ? 1 : 0;
-	PIN_EV2 = switches.flags.s2 == 1 ? 1 : 0;
-	PIN_EV3 = switches.flags.s3 == 1 ? 1 : 0;
-
-	leds.flags.led1 = pressure > 100;
-}
-
 void board_tick(system_state *current_state)
 {
 	unsigned long currentMillis = millis();
@@ -160,7 +113,8 @@ void board_tick(system_state *current_state)
 	check_zc();
 
 	pump_psm.psm_value = current_state->pump;
-	//  coffee_boiler_psm.psm_value = current_state->valves;
+	coffee_boiler_psm.psm_value = current_state->boiler_c;
+	steam_boiler_psm.psm_value = current_state->boiler_s;
 
 	valves.byte = current_state->valves;
 
@@ -172,15 +126,13 @@ void board_tick(system_state *current_state)
 
 	set_leds_switches(currentMillis);
 
-	pressure = ((pressure_duty_cycle - 10) * 138 /* pressure range for transducer */) / 8;
+	pressure = ((pressure_duty_cycle - 10) * 138L /* pressure range for transducer */) / 80;
 
 	current_state->millis = (unsigned char)((currentMillis >> 3) & 0xFF);
 	current_state->temp_c = (unsigned char)(temp_interpolation(ntc_c_adc_value) / 10); // Send temp in °C
 	current_state->temp_s = (unsigned char)(temp_interpolation(ntc_s_adc_value) / 10); // Send temp in °C
 	current_state->pressure = (char)clamp(pressure, -127, 127);
 	current_state->switches = switches.byte;
-
-	//test_stuff(currentMillis, current_state); // TODO
 }
 
 void set_leds_switches(unsigned long currentMillis)
@@ -314,7 +266,8 @@ void check_zc()
 		adc_poll();
 
 		PIN_PUMP = calculateSkip(&pump_psm) == 0 ? 1 : 0;
-		// PIN_HEATER_C = calculateSkip(&coffee_boiler_psm) == 0 ? 1 : 0;
+		PIN_HEATER_C = calculateSkip(&coffee_boiler_psm) == 0 ? 1 : 0;
+		PIN_HEATER_S = calculateSkip(&steam_boiler_psm) == 0 ? 1 : 0;
 
 		zero_crossed = 0;
 	}

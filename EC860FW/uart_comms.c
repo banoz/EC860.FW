@@ -72,17 +72,11 @@ void uart_tick(system_state *current_state)
         }
     }
 
-    /* Send state periodically */
-    if (echo > 0) // uart_tx_tick < currentMillis)
+    if (echo > 0)
     {
-        // while (uart_tx_tick < currentMillis)
-        // {
-        //     uart_tx_tick += 200;
-        // }
-
         unsigned char checksum = current_state->millis ^ current_state->temp_c ^ current_state->temp_s ^ current_state->pressure ^ current_state->switches;
-        
-		ring_buffer_put(_tbd, 0xAA);
+
+        ring_buffer_put(_tbd, 0xAA);
         ring_buffer_put(_tbd, current_state->millis);
         ring_buffer_put(_tbd, current_state->temp_c);
         ring_buffer_put(_tbd, current_state->temp_s);
@@ -127,6 +121,6 @@ void _uart0_rx_interrupt(void)
     unsigned char c;
 
     c = u0rb;
-	
+
     ring_buffer_put(_rbd, c);
 }
