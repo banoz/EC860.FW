@@ -7,6 +7,7 @@
     {                    \
         _asm(" FSET I"); \
     }
+
 #define DISABLE_IRQ      \
     {                    \
         _asm(" FCLR I"); \

@@ -144,12 +144,12 @@ void serial_config(void)
 {
 	/* ===== Serial Communication Configuration ===== */
 	u0mr = 0x05;
-	s0tic = 0;
-	s0ric = 0;
+	s0tic = 1;
+	s0ric = 1;
 	te_u0c1 = 0;
 	re_u0c1 = 0;
 	u0mr = 0x05;
-	u0c0 = 0;
+	u0c0 = 0b00001000;
 	u0c1 = 0;
 	u0brg = 0x15; //(unsigned char)(((f1_CLK_SPEED / 16) / BAUD_RATE) - 1);
 	te_u0c1 = 1;

@@ -11,7 +11,14 @@ typedef struct psm_state
 	unsigned int psm_counter; // Count of pump activation cycles
 } psm_state;
 
-typedef struct led_state
+typedef struct valve_state_flags
+{
+	unsigned char valve1 : 1; // Valve 1 state
+	unsigned char valve2 : 1; // Valve 2 state
+	unsigned char valve3 : 1; // Valve 3 state
+};
+
+typedef struct led_state_flags
 {
 	unsigned char led1 : 1; // LED 1 state
 	unsigned char led2 : 1; // LED 2 state
@@ -19,9 +26,9 @@ typedef struct led_state
 	unsigned char led4 : 1; // LED 4 state
 	unsigned char led5 : 1; // LED 5 state
 	unsigned char led6 : 1; // LED 6 state
-} led_state;
+};
 
-typedef struct switch_state
+typedef struct switch_state_flags
 {
 	unsigned char s1 : 1; // Switch 1 state
 	unsigned char s2 : 1; // Switch 2 state
@@ -29,7 +36,9 @@ typedef struct switch_state
 	unsigned char s4 : 1; // Switch 4 state
 	unsigned char s5 : 1; // Switch 5 state
 	unsigned char s6 : 1; // Switch 6 state
-} switch_state;
+	unsigned char s7 : 1; // Switch 7 state
+	unsigned char s8 : 1; // Switch 8 state
+};
 
 typedef struct ntc_mapping
 {
@@ -40,8 +49,26 @@ typedef struct ntc_mapping
 volatile psm_state pump_psm = {0, 0x7F, 0, 0}; // Pump PSM (0-127)
 // psm_state coffee_boiler_psm = {0, 0x7F, 0, 0}; // Coffee boiler PSM (0-127)
 
-switch_state switches = {0, 0, 0, 0, 0, 0}; // Switch states
-led_state leds = {0, 0, 0, 0, 0, 0};		// LED states
+union valve_state
+{
+	unsigned char byte;				// The single byte representation
+	struct valve_state_flags flags; // The bitfield struct representation
+};
+
+union led_state
+{
+	unsigned char byte;			  // The single byte representation
+	struct led_state_flags flags; // The bitfield struct representation
+};
+
+union switch_state
+{
+	unsigned char byte;				 // The single byte representation
+	struct switch_state_flags flags; // The bitfield struct representation
+};
+
+union switch_state switches = {0}; // Switch states
+union led_state leds = {0};		   // LED states
 
 const ntc_mapping temp_mapping[] = {
 	{90U, 25U},
@@ -78,13 +105,13 @@ char calculateSkip(psm_state *);
 
 unsigned long uart_counter = 0;
 
-void test_stuff(unsigned long currentMillis)
+void test_stuff(unsigned long currentMillis, system_state * current_state)
 {
 	char msg_buffer[32];
 
 	if (uart_counter <= currentMillis)
 	{
-		leds.led5 = !leds.led5; // Toggle LED5 every 500ms
+		leds.flags.led5 = !leds.flags.led5; // Toggle LED5 every 500ms
 
 		while (uart_counter <= currentMillis)
 		{
@@ -97,76 +124,96 @@ void test_stuff(unsigned long currentMillis)
 		// 	sprintf(msg_buffer, "C: %u\n", ntc_c_adc_value);
 
 		// sprintf(msg_buffer, "[%i]\n", (int)pressure);
-		sprintf(msg_buffer, "%u;%u\n", ntc_c_adc_value, temp_interpolation(ntc_c_adc_value));
+		// sprintf(msg_buffer, "%u;%u\n", ntc_c_adc_value, temp_interpolation(ntc_c_adc_value));
 
-		text_write(msg_buffer);
+		// text_write(msg_buffer);
 	}
 
 	adc_poll();
 
-	if (switches.s5 == 1)
+	if (switches.flags.s5 == 1)
 	{
-		pump_psm.psm_value = 10;
+		current_state->pump = 10;
 	}
-	else if (switches.s4 == 1)
+	else if (switches.flags.s4 == 1)
 	{
-		pump_psm.psm_value = 50;
+		current_state->pump = 50;
 	}
 	else
 	{
-		pump_psm.psm_value = 0;
+		current_state->pump = 0;
 	}
 
-	leds.led6 = switches.s1;
-	leds.led4 = switches.s2;
-	// leds.led5 = switches.s3;
+	PIN_EV1 = switches.flags.s1 == 1 ? 1 : 0;
+	PIN_EV2 = switches.flags.s2 == 1 ? 1 : 0;
+	PIN_EV3 = switches.flags.s3 == 1 ? 1 : 0;
 
-	leds.led1 = switches.s4;
-	leds.led2 = switches.s5;
-	leds.led3 = switches.s6;
+	leds.flags.led1 = pressure > 100;
 }
 
-void board_tick()
+void board_tick(system_state *current_state)
 {
 	unsigned long currentMillis = millis();
 
-	set_leds_switches(currentMillis);
+	union valve_state valves = {0};
 
 	check_zc();
 
-	pressure = ((pressure_duty_cycle - 10) * 12 /* pressure range for transducer */) / 8;
+	pump_psm.psm_value = current_state->pump;
+	//  coffee_boiler_psm.psm_value = current_state->valves;
 
-	test_stuff(currentMillis); // TODO
+	valves.byte = current_state->valves;
+
+	PIN_EV1 = valves.flags.valve1 ? 1 : 0;
+	PIN_EV2 = valves.flags.valve2 ? 1 : 0;
+	PIN_EV3 = valves.flags.valve3 ? 1 : 0;
+
+	leds.byte = current_state->leds;
+
+	set_leds_switches(currentMillis);
+
+	pressure = ((pressure_duty_cycle - 10) * 138 /* pressure range for transducer */) / 8;
+
+	current_state->millis = (unsigned char)((currentMillis >> 3) & 0xFF);
+	current_state->temp_c = (unsigned char)(temp_interpolation(ntc_c_adc_value) / 10); // Send temp in °C
+	current_state->temp_s = (unsigned char)(temp_interpolation(ntc_s_adc_value) / 10); // Send temp in °C
+	current_state->pressure = (char)clamp(pressure, -127, 127);
+	current_state->switches = switches.byte;
+
+	//test_stuff(currentMillis, current_state); // TODO
 }
 
 void set_leds_switches(unsigned long currentMillis)
 {
 	if (currentMillis & 0x01)
 	{
-		switches.s4 = PIN_S1_S4 == 1 ? 1 : 0;
-		switches.s5 = PIN_S2_S5 == 1 ? 1 : 0;
-		switches.s6 = PIN_S3_S6 == 1 ? 1 : 0;
+		switches.flags.s4 = PIN_S1_S4 == 1 ? 1 : 0;
+		switches.flags.s5 = PIN_S2_S5 == 1 ? 1 : 0;
+		switches.flags.s6 = PIN_S3_S6 == 1 ? 1 : 0;
 
-		PIN_LED1_LED6 = leds.led6 == 0 ? 1 : 0;
-		PIN_LED2_LED4 = leds.led4 == 0 ? 1 : 0;
-		PIN_LED3_LED5 = leds.led5 == 0 ? 1 : 0;
+		PIN_LED1_LED6 = leds.flags.led6 == 0 ? 1 : 0;
+		PIN_LED2_LED4 = leds.flags.led4 == 0 ? 1 : 0;
+		PIN_LED3_LED5 = leds.flags.led5 == 0 ? 1 : 0;
 
 		PIN_LED123_ANODE = 1;
 		PIN_LED456_ANODE = 0;
 	}
 	else
 	{
-		switches.s1 = PIN_S1_S4 == 1 ? 1 : 0;
-		switches.s2 = PIN_S2_S5 == 1 ? 1 : 0;
-		switches.s3 = PIN_S3_S6 == 1 ? 1 : 0;
+		switches.flags.s1 = PIN_S1_S4 == 1 ? 1 : 0;
+		switches.flags.s2 = PIN_S2_S5 == 1 ? 1 : 0;
+		switches.flags.s3 = PIN_S3_S6 == 1 ? 1 : 0;
 
-		PIN_LED1_LED6 = leds.led1 == 0 ? 1 : 0;
-		PIN_LED2_LED4 = leds.led2 == 0 ? 1 : 0;
-		PIN_LED3_LED5 = leds.led3 == 0 ? 1 : 0;
+		PIN_LED1_LED6 = leds.flags.led1 == 0 ? 1 : 0;
+		PIN_LED2_LED4 = leds.flags.led2 == 0 ? 1 : 0;
+		PIN_LED3_LED5 = leds.flags.led3 == 0 ? 1 : 0;
 
 		PIN_LED123_ANODE = 0;
 		PIN_LED456_ANODE = 1;
 	}
+
+	switches.flags.s7 = PIN_SW1 == 1 ? 1 : 0;
+	switches.flags.s8 = PIN_SW3 == 1 ? 1 : 0;
 }
 
 unsigned long millis()
@@ -311,6 +358,11 @@ void _int3_interrupt()
 		else
 		{
 			pressure_duty_cycle = (unsigned char)(((unsigned int)(100U * pressure_pwm_rise_counter)) / pressure_pwm_counter);
+		}
+
+		if (pressure_duty_cycle > 100)
+		{
+			pressure_duty_cycle = 100;
 		}
 
 		pressure_pwm_rise_counter = 0;

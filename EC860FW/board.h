@@ -2,6 +2,7 @@
 #define BOARD_H
 
 #include "sfr_r827.h"
+#include "system_state.h"
 
 // PORT 0
 #define PIN_S3_S6 p0_0        // IN  - US.INT.1
@@ -37,8 +38,18 @@
 #define PIN_EV3 p5_3 // OUT - BROWN
 #define PIN_EV2 p5_4 // OUT - WHITE
 
-void board_tick(void);
+void board_tick(system_state *current_state);
 
 unsigned long millis(void);
+
+inline int clamp(int value, int min, int max)
+{
+    if (value < min)
+        return min;
+    else if (value > max)
+        return max;
+    else
+        return value;
+}
 
 #endif // BOARD_H

@@ -286,7 +286,7 @@
 [OPTIONS_Debug_R8C_E8_SYSTEM_Renesas M16C ConfiguratorR8C]
 "Single Shot" "0bff83d337c9cd10" 6 
 [OPTIONS_Debug_R8C_E8_SYSTEM_Renesas OptLinker]
-"Single Shot" "0211a3d337c9cd10" 5 
+"Single Shot" "0b62741e23f9cd10" 5 
 [OPTIONS_Debug_R8C_E8_SYSTEM]
 "" 0 
 "[V|VERSION|1] [B|COMMAND|1] [S|SPEC|UITRON4] " 6 
@@ -295,7 +295,8 @@
 "[V|VERSION|1] [S|LIST|L|M] [B|INSPECTOR|1] [S|OUTPUTPATH|^"$(CONFIGDIR)\$(FILELEAF).obj^"] [B|DISABLES_MESSAGE|1] [S|CPU|R8C] " 4 
 "[V|VERSION|1] [S|OUTPUTPATH|^"$(CONFIGDIR)\$(PROJECTNAME).lib^"] [S|CPU|R8C] [B|NOFLOAT|1] [S|MODE|BUILD/CHANGED]" 1 
 "[V|VERSION|1] [S|OUTPUT|OBJECTCODE] [S|OUTPUTPATH|^"$(CONFIGDIR)\$(FILELEAF).obj^"] [B|INSPECTOR|1] [B|SILENT|1] [S|CPU|R8C] " 2 
-"[V|VERSION|6] [B|OPTIMIZE|0] [S|OUTPUT|^"$(CONFIGDIR)\$(PROJECTNAME).mot^"] [B|LIST|1] [S|LIST|^"$(CONFIGDIR)\$(PROJECTNAME).map^"] [S|OTHER|^"-change_message=information=1100,1322,1410^"] [S|FORM|STYPE] [B|TOTAL_SIZE|1] [B|STACK|1] [S|START|data_SE,bss_SE,data_SO,bss_SO,data_NE,bss_NE,data_NO,bss_NO,stack,istack,heap_NE(400)|interrupt,rom_NE,rom_NO,data_SEI,data_SOI,data_NEI,data_NOI,switch_table,C$VTBL,program(c000)|vector(fedc)]" 5 
+"[V|VERSION|6] [S|FORM|STYPE] [S|BYTE_COUNT_VALUE|FF] [B|DEBUG|1] [S|CRC|NONE|00000000] [B|LIST|1] [S|LIST|^"$(CONFIGDIR)\$(PROJECTNAME).map^"] [S|SHOW|METHODCUSTOM|] [S|OUTPUT|^"$(CONFIGDIR)\$(PROJECTNAME).mot^"] [I|SPACE|^"FF^"] [B|OPTIMIZE|0] [S|START|data_SE,bss_SE,data_SO,bss_SO,data_NE,bss_NE,data_NO,bss_NO,stack,istack,heap_NE(0400)|interrupt,rom_NE,rom_NO,data_SEI,data_SOI,data_NEI,data_NOI,switch_table,C$VTBL,program(0C000)|vector(0FEDC)] [B|STACK|1] [B|TOTAL_SIZE|1] [S|OTHER|^"-change_message=information=1100,1322,1410^"]
+" 5 
 [EXCLUDED_FILES_Debug_R8C_E8_SYSTEM]
 [LINKAGE_ORDER_Debug_R8C_E8_SYSTEM]
 "C:\WorkSpace\EC860FW\EC860FW\Debug_R8C_E8_SYSTEM\ncrt0.r30" 

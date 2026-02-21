@@ -1,7 +1,11 @@
 #include "sfr_r827.h"
 #include "hwsetup.h"
 #include "board.h"
+#include "system_state.h"
+#include "uart_comms.h"
 #include "EC860FW.h"
+
+volatile system_state current_state = {0};
 
 void main(void);
 
@@ -25,8 +29,8 @@ void main(void)
 	PIN_LED2_LED4 = 0;
 	PIN_LED3_LED5 = 0;
 
-	PIN_LED123_ANODE = 1;
-	PIN_LED456_ANODE = 1;
+	PIN_LED123_ANODE = 0;
+	PIN_LED456_ANODE = 0;
 
 	PIN_FLOW_PWR = 1;
 
@@ -36,9 +40,11 @@ void main(void)
 	timer_config();
 	serial_config();
 
+	uart_init();
+
 	/* Enable global interrupts */
 	ENABLE_IRQ
-	
+
 	PIN_FLOW_PWR = 0;
 
 	while (1)
@@ -49,7 +55,11 @@ void main(void)
 		{
 			lastMillis = currentMillis;
 
-			board_tick();
+			board_tick(&current_state);
+
+			uart_tick(&current_state);
 		}
+
+		wdtr = 0x00; // Reset watchdog timer
 	}
 }
