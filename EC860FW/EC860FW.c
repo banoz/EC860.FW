@@ -51,7 +51,7 @@ void main(void)
 	{
 		currentMillis = millis();
 
-		if (currentMillis > lastMillis)
+		if ((unsigned long)(currentMillis - lastMillis) > 0UL)
 		{
 			lastMillis = currentMillis;
 
