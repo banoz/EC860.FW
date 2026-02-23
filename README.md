@@ -40,3 +40,5 @@ R5F21274NFP
 | 2 | MODE |
 | 3 | NRST |
 | 4 | VCC  |
+
+<img width="1024" height="768" alt="ec860_buttons_leds" src="https://github.com/user-attachments/assets/efb9b695-edf2-4543-a91d-ac913923cd96" />
